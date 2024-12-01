@@ -21,7 +21,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.11
+        python-version: '3.11'
 
     # Step 3: Install dependencies
     - name: Install dependencies
@@ -33,10 +33,19 @@ jobs:
     - name: Run scrape.py
       run: python scrape.py
 
-    # Step 5: Push the output directory back to the repository
-    - name: Push changes
-      uses: ad-m/github-push-action@v0.6.0
+    # Step 5: Upload the output directory as an artifact
+    - name: Upload output directory
+      uses: actions/upload-artifact@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: main
-        force: true
+        name: generated-output
+        path: output/
+
+    # Optional: Commit and push changes to the repository
+    - name: Commit and Push Changes
+      if: always()
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add output/
+        git commit -m "Update generated output"
+        git push origin main

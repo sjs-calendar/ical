@@ -10,8 +10,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # Base URL for scraping
 BASE_URL = "https://jibe.sanjuansailing.com/a-vesseloverview.asp"
 
-# GitHub raw content base URL (update `<username>` and `<repo>` with your details)
-RAW_GITHUB_URL = "https://raw.githubusercontent.com/sjs-calendar/ical/main"
+# GitHub raw content base URL
+RAW_GITHUB_URL = "https://raw.githubusercontent.com/sjs-calendar/ical/main/output"
 
 # Directory to save output files
 OUTPUT_DIR = "output"
@@ -98,6 +98,7 @@ def create_html(ics_urls):
     Create an HTML file with links to all the ICS files.
     """
     logging.info("Creating HTML file...")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)  # Ensure output directory exists
     with open(HTML_FILE, "w") as f:
         f.write("<html>\n<head>\n<title>Boat Calendars</title>\n</head>\n<body>\n")
         f.write("<h1>Subscribe to Boat Calendars</h1>\n<ul>\n")

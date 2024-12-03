@@ -25,8 +25,8 @@ HTML_FILE = os.path.join(OUTPUT_DIR, "index.html")
 status_displays = dict(UNAVAILABLE='🚫 Unavailable',
                     BOOKED='📖 Booked',
                     SCHOOL='🏫 School',
-                    END_OFFSEASON='🟢 End Off-Season',
-                    START_OFFSEASON='🛑 Start Off-Season')
+                    SEASON_BEGIN='🟢 Season Begin',
+                    SEASON_END='🛑 Season End')
 
 os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
@@ -157,15 +157,17 @@ def get_range_status(day_status):
     # Add the final range
     grouped.append((start_date.isoformat(), end_date.isoformat(), status))
 
-    # modify the beginning of year off-season unavailable to "last day off-season last"
+    # do start of season
     iso_start_date, iso_end_date, status = grouped[0]
     if status == 'UNAVAILABLE':
-        grouped[0] = (iso_end_date, iso_end_date, 'END_OFFSEASON')
+        iso_season_begin = (datetime.fromisoformat(iso_end_date) + timedelta(days=1)).date().isoformat()
+        grouped[0] = (iso_season_begin, iso_season_begin, 'SEASON_BEGIN')
 
-    # do comparable for the end of year off-season unavailable
+    # do end of season
     iso_start_date, iso_end_date, status = grouped[-1]
     if status == 'UNAVAILABLE':
-        grouped[-1] = (iso_start_date, iso_start_date, 'START_OFFSEASON')
+        iso_season_end = (datetime.fromisoformat(iso_end_date) + timedelta(days=1)).date().isoformat()
+        grouped[-1] = (iso_season_end, iso_season_end, 'SEASON_END')
 
     return grouped
 #

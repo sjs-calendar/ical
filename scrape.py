@@ -21,6 +21,13 @@ OUTPUT_DIR = "output"
 ARCHIVE_DIR = os.path.join(OUTPUT_DIR, "archive")
 HTML_FILE = os.path.join(OUTPUT_DIR, "index.html")
 
+# Statuses
+status_displays = dict(UNAVAILABLE='🚫 Unavailable',
+                    BOOKED='📖 Booked',
+                    SCHOOL='🏫 School',
+                    END_OFFSEASON='🟢 End Off-Season',
+                    START_OFFSEASON='🛑 Start Off-Season')
+
 os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
 def fetch_page(year, month):
@@ -35,7 +42,38 @@ def fetch_page(year, month):
         response.raise_for_status()
     logging.info(f"Page for month {month} fetched successfully.")
     return response.text
+#
+#
+#
+def collect_boats(year, month, out_boats):
+    # first look for boats.YYYY.MM.jsonl in output directory
+    file = os.path.join(ARCHIVE_DIR, f"boats.{year}.{month:02d}.json")
+    if os.path.exists(file):
+        logging.info(f"Reading boat data from {file}")
+        with open(file, "r") as f:
+            boats = json.load(f)
 
+    else:
+        # if the file doesn't exist, fetch the page and parse the boats
+        html = fetch_page(year, month)
+        boats = parse_boats(html, year, month)
+
+        # if year/month are in the past, save the data to a file
+        curr_year = datetime.now().year
+        curr_month = datetime.now().month
+        if year < curr_year or (year == curr_year and month < curr_month):
+            with open(file, "w") as f:
+                json.dump(boats, f)
+            logging.info(f"Boat data saved to {file}")
+
+    for boat, day_status in boats.items():
+        if boat not in out_boats:
+            out_boats[boat] = day_status
+        else:
+            out_boats[boat].extend(day_status)
+#
+#
+#
 def parse_boats(html, year, month):
     """
     Parse the HTML content and extract boat information for a specific month.
@@ -56,7 +94,7 @@ def parse_boats(html, year, month):
             continue
 
         boat_name = link_tag.text.strip()
-        boat_days = row.find_all("td", class_=["CbgT", "CbgWE", "CbgM", "CbgB4Web"])
+        boat_days = row.find_all("td", class_=["CbgT", "CbgWE", "CbgM", "CbgB4Web", "CbgS"])
         #boat_days = row.find_all("td")
 
         availability = []
@@ -71,9 +109,11 @@ def parse_boats(html, year, month):
 
             # Categorize based on class
             if "CbgM" in cell["class"]:  # Off-season or otherwise unavailable
-                availability.append((iso_date, "Unavailable"))
+                availability.append((iso_date, 'UNAVAILABLE'))
             elif "CbgB4Web" in cell["class"]: # Booked
-                availability.append((iso_date, "Booked"))
+                availability.append((iso_date, 'BOOKED'))
+            elif "CbgS" in cell["class"]: # School
+                availability.append((iso_date, 'SCHOOL'))
             #elif "CbgWE" in cell["class"]:  # Weekend (assuming available by default)
             #    availability.append((iso_date, "Available"))
             #elif "CbgT" in cell["class"]:  # Available
@@ -119,13 +159,13 @@ def get_range_status(day_status):
 
     # modify the beginning of year off-season unavailable to "last day off-season last"
     iso_start_date, iso_end_date, status = grouped[0]
-    if status == "Unavailable":
-        grouped[0] = (iso_end_date, iso_end_date, 'Last Day Off-Season')
+    if status == 'UNAVAILABLE':
+        grouped[0] = (iso_end_date, iso_end_date, 'END_OFFSEASON')
 
     # do comparable for the end of year off-season unavailable
     iso_start_date, iso_end_date, status = grouped[-1]
-    if status == "Unavailable":
-        grouped[-1] = (iso_start_date, iso_start_date, 'First Day Off-Season')
+    if status == 'UNAVAILABLE':
+        grouped[-1] = (iso_start_date, iso_start_date, 'START_OFFSEASON')
 
     return grouped
 #
@@ -146,8 +186,10 @@ def create_ics_files(range_boats):
             start_date = datetime.fromisoformat(start_date_iso).date()
             end_date = datetime.fromisoformat(end_date_iso).date()
 
+            status_display = status_displays.get(status, status)
+
             event = Event()
-            event.name = f"{boat} - {status}"
+            event.name = f"{boat} {status_display}"
             event.begin = start_date
             event.end = end_date
             event.make_all_day()
@@ -160,7 +202,7 @@ def create_ics_files(range_boats):
 
         # Write the calendar to a file
         os.makedirs(OUTPUT_DIR, exist_ok=True)  # Ensure the output directory exists
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.writelines(calendar)
         
         logging.info(f"ICS file created: {filename}")
@@ -185,35 +227,6 @@ def create_html(ics_urls):
             f.write(f'<li><code>{url}</code></li>\n')
         f.write("</ul>\n</body>\n</html>")
     logging.info(f"HTML file created: {HTML_FILE}")
-#
-#
-#
-def collect_boats(year, month, out_boats):
-    # first look for boats.YYYY.MM.jsonl in output directory
-    file = os.path.join(ARCHIVE_DIR, f"boats.{year}.{month:02d}.json")
-    if os.path.exists(file):
-        logging.info(f"Reading boat data from {file}")
-        with open(file, "r") as f:
-            boats = json.load(f)
-
-    else:
-        # if the file doesn't exist, fetch the page and parse the boats
-        html = fetch_page(year, month)
-        boats = parse_boats(html, year, month)
-
-        # if year/month are in the past, save the data to a file
-        curr_year = datetime.now().year
-        curr_month = datetime.now().month
-        if year < curr_year or (year == curr_year and month < curr_month):
-            with open(file, "w") as f:
-                json.dump(boats, f)
-            logging.info(f"Boat data saved to {file}")
-
-    for boat, day_status in boats.items():
-        if boat not in out_boats:
-            out_boats[boat] = day_status
-        else:
-            out_boats[boat].extend(day_status)
 #
 #     
 #

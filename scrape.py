@@ -166,7 +166,7 @@ def get_range_status(day_status):
     # do end of season
     iso_start_date, iso_end_date, status = grouped[-1]
     if status == 'UNAVAILABLE':
-        iso_season_end = (datetime.fromisoformat(iso_end_date) + timedelta(days=1)).date().isoformat()
+        iso_season_end = (datetime.fromisoformat(iso_start_date) + timedelta(days=-1)).date().isoformat()
         grouped[-1] = (iso_season_end, iso_season_end, 'SEASON_END')
 
     return grouped

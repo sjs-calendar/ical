@@ -27,7 +27,7 @@ def fetch_page(year, month):
     """
     Fetch the webpage for a specific month and return its HTML content.
     """
-    logging.info(f"Fetching the webpage for month {month}...")
+    logging.info(f"Fetching the webpage for month {year}/{month}...")
     payload = {"DisplayMonth": month, "DisplayYear": year}  # POST parameter to change month
     response = requests.post(BASE_URL, data=payload)
     if response.status_code != 200:
@@ -149,7 +149,7 @@ def create_ics_files(range_boats):
             event = Event()
             event.name = f"{boat} - {status}"
             event.begin = start_date
-            event.end = end_date + timedelta(days=1)  # Add 1 day, DTEND is exclusive
+            event.end = end_date
             event.make_all_day()
             event.created = datetime.utcnow()
             calendar.events.add(event)
@@ -223,16 +223,17 @@ def main():
     """
     logging.info("Starting the scraping process.")
 
-    year_boats = {}
-    range_boats = {}
+    range_boats = {} # across all years
     current_year = datetime.now().year
-    for year in range(current_year-1, current_year + 2):
+    for year in range(current_year-5, current_year + 3):
+        year_boats = {}
         for month in range(3, 11):  # Loop thru march-october
             collect_boats(year, month, year_boats)
 
         # consolidate per year as range status
         for boat, day_status in year_boats.items():
             range_status = get_range_status(day_status)
+
             if boat not in range_boats:
                 range_boats[boat] = range_status
             else:

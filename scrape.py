@@ -4,6 +4,7 @@ from ics import Calendar, Event
 import logging
 import os
 import json
+import hashlib
 from datetime import datetime
 from datetime import timedelta
 
@@ -170,6 +171,14 @@ def get_range_status(day_status):
         grouped[-1] = (iso_season_end, iso_season_end, 'SEASON_END')
 
     return grouped
+
+def generate_uid(start_date: str) -> str:
+    """
+    Generate a stable UID based on start date
+    """
+    base = f'{start_date}'
+    uid_hash = hashlib.md5(base.encode()).hexdigest()
+    return f"{uid_hash}@sjs"
 #
 #
 #
@@ -196,6 +205,7 @@ def create_ics_files(range_boats):
             event.end = end_date
             event.make_all_day()
             event.created = datetime.utcnow()
+            event.uid = generate_uid(start_date)
             calendar.events.add(event)
 
         # Generate file path
